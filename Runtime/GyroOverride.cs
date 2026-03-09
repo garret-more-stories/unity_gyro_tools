@@ -9,6 +9,8 @@ using UnityEngine.Scripting;
 using UnityEngine.PlayerLoop;
 using UnityEngine.LowLevel;
 using System;
+using UnityEngine.InputSystem.Layouts;
+using UnityEngine.InputSystem.LowLevel;
 
 
 [assembly : AlwaysLinkAssembly]
@@ -108,6 +110,7 @@ namespace MoreStories.GyroTools
             public bool   synthetic;
             public int    offset;
             public string processors;
+            public int bit;
         }
 
         public enum ImuType
@@ -121,19 +124,34 @@ namespace MoreStories.GyroTools
 
         #region layout_information
 
-        public const string DS4HIDLayoutName = "Dualshock4GamepadHID";
-        public const string IMUControlPath   = "IMU";
-        public const string GyroControlPath  = IMUControlPath + "/gyro";
-        public const string AccelControlPath = IMUControlPath + "/accel";
+        public const string GamepadLayoutName  = "Gamepad";
+        public const string DS4HIDLayoutName   = "Dualshock4GamepadHID";
+        public const string SwitchProLinuxName = "SwitchProControllerLinux";
+        public const string IMUControlPath     = "IMU";
+        public const string GyroControlPath    = IMUControlPath + "/gyro";
+        public const string AccelControlPath   = IMUControlPath + "/accel";
         static GyroControllerLayout GamepadWithIMUOverride = new GyroControllerLayout
         {
             name = "GamepadWithIMU",
-            extend = "Gamepad",
+            extend = GamepadLayoutName,
             controls = new OverridenControl[]
             {
                 new OverridenControl { name = IMUControlPath,   layout = IMUControlPath, synthetic = true, offset = 64 }, //Large offset so that it doesn't conflict with HID values
                 new OverridenControl { name = AccelControlPath, layout = "Vector3",      synthetic = true, offset = 0 },
                 new OverridenControl { name = GyroControlPath,  layout = "Vector3",      synthetic = true, offset = 12  }
+            }
+        };
+
+        static GyroControllerLayout SwitchProCorrectedLayout = new GyroControllerLayout
+        {
+            name = SwitchProLinuxName,
+            extend = GamepadLayoutName,
+            controls = new OverridenControl[]
+            {
+                new OverridenControl { name = "buttonNorth", bit = (int)GamepadButton.West,  synthetic = true, layout = "Button"},
+                new OverridenControl { name = "buttonWest",  bit = (int)GamepadButton.North, synthetic = true, layout = "Button"},
+                new OverridenControl { name = "buttonSouth", bit = (int)GamepadButton.East,  synthetic = true, layout = "Button"},
+                new OverridenControl { name = "buttonEast",  bit = (int)GamepadButton.South, synthetic = true, layout = "Button"},
             }
         };
 
@@ -236,8 +254,17 @@ namespace MoreStories.GyroTools
         {
             InputSystem.RegisterLayout<IMUControl>(IMUControlPath);
             InputSystem.RegisterLayoutOverride(JsonUtility.ToJson(GamepadWithIMUOverride));
-#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+
+#if UNITY_EDITOR_LINUX || UNITY_STANDALONE_LINUX
+
+            InputSystem.RegisterLayout(JsonUtility.ToJson(SwitchProCorrectedLayout), SwitchProLinuxName, matches: new InputDeviceMatcher()
+            .WithManufacturer("Nintendo Co., Ltd")
+            .WithProduct("Nintendo Switch Pro Controller"));
+
+#elif UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+
             InputSystem.RegisterLayoutOverride(JsonUtility.ToJson(Dualshock4HIDOverride));
+
 #endif
         }
 
@@ -281,7 +308,7 @@ namespace MoreStories.GyroTools
             while(LoadImuReading(type, ref imuReading))
             {
 #if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
-                if(motionControls[imuReading.controllerIndex].owner.layout == "DualShock4GamepadHID")
+                if(motionControls[imuReading.controllerIndex].owner.layout == DS4HIDLayoutName)
                 {
                     set_controller_imu_state(imuReading.controllerIndex, false);
                     
