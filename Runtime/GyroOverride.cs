@@ -260,7 +260,6 @@ namespace MoreStories.GyroTools
                     "UnityEngine.InputSystem.LowLevel.IEventPreProcessor.PreProcessEvent"),
                 prefix: new HarmonyMethod(typeof(SonyHIDPreProcessPatch), nameof(SonyHIDPreProcessPatch.Prefix))
             );
-
 #endif
         }
 
