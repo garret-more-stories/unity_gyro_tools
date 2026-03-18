@@ -9,6 +9,16 @@ using UnityEngine.Scripting;
 using UnityEngine.PlayerLoop;
 using UnityEngine.LowLevel;
 using System;
+<<<<<<< HEAD
+=======
+using UnityEngine.InputSystem.Layouts;
+using UnityEngine.InputSystem.LowLevel;
+using UnityEngine.InputSystem.DualShock;
+
+#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+using HarmonyLib;
+#endif
+>>>>>>> 63aaad1 (Bypassed QueueDeltaStateEvent limitations on Sony Controllers)
 
 
 [assembly : AlwaysLinkAssembly]
@@ -121,10 +131,19 @@ namespace MoreStories.GyroTools
 
         #region layout_information
 
+<<<<<<< HEAD
         public const string DS4HIDLayoutName = "Dualshock4GamepadHID";
         public const string IMUControlPath   = "IMU";
         public const string GyroControlPath  = IMUControlPath + "/gyro";
         public const string AccelControlPath = IMUControlPath + "/accel";
+=======
+        public const string GamepadLayoutName  = "Gamepad";
+        public const string DS4HIDLayoutName   = "DualShock4GamepadHID";
+        public const string SwitchProLinuxName = "SwitchProControllerLinux";
+        public const string IMUControlPath     = "IMU";
+        public const string GyroControlPath    = IMUControlPath + "/gyro";
+        public const string AccelControlPath   = IMUControlPath + "/accel";
+>>>>>>> 63aaad1 (Bypassed QueueDeltaStateEvent limitations on Sony Controllers)
         static GyroControllerLayout GamepadWithIMUOverride = new GyroControllerLayout
         {
             name = "GamepadWithIMU",
@@ -137,6 +156,7 @@ namespace MoreStories.GyroTools
             }
         };
 
+<<<<<<< HEAD
 // Temporary Measure to combat current glitch where DS4 controllers won't accept layout override inputs externally
 #if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
         static GyroControllerLayout Dualshock4HIDOverride = new GyroControllerLayout
@@ -157,6 +177,20 @@ namespace MoreStories.GyroTools
             }
         };
 #endif
+=======
+        static GyroControllerLayout SwitchProCorrectedLayout = new GyroControllerLayout
+        {
+            name = SwitchProLinuxName,
+            extend = GamepadLayoutName,
+            controls = new OverridenControl[]
+            {
+                new OverridenControl { name = "buttonNorth", bit = (int)GamepadButton.West,  synthetic = true, layout = "Button"},
+                new OverridenControl { name = "buttonWest",  bit = (int)GamepadButton.North, synthetic = true, layout = "Button"},
+                new OverridenControl { name = "buttonSouth", bit = (int)GamepadButton.East,  synthetic = true, layout = "Button"},
+                new OverridenControl { name = "buttonEast",  bit = (int)GamepadButton.South, synthetic = true, layout = "Button"},
+            }
+        };
+>>>>>>> 63aaad1 (Bypassed QueueDeltaStateEvent limitations on Sony Controllers)
 
         #endregion
         
@@ -234,10 +268,36 @@ namespace MoreStories.GyroTools
 
         static void AddNewIMULayout()
         {
+           
             InputSystem.RegisterLayout<IMUControl>(IMUControlPath);
             InputSystem.RegisterLayoutOverride(JsonUtility.ToJson(GamepadWithIMUOverride));
+<<<<<<< HEAD
 #if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
             InputSystem.RegisterLayoutOverride(JsonUtility.ToJson(Dualshock4HIDOverride));
+=======
+
+#if UNITY_EDITOR_LINUX || UNITY_STANDALONE_LINUX
+
+            InputSystem.RegisterLayout(JsonUtility.ToJson(SwitchProCorrectedLayout), SwitchProLinuxName, matches: new InputDeviceMatcher()
+            .WithManufacturer("Nintendo Co., Ltd")
+            .WithProduct("Nintendo Switch Pro Controller"));
+
+#elif UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+
+            var harmony = new Harmony("com.MoreStories.HIDPatches");    
+            harmony.Patch(
+            original: AccessTools.Method(typeof(DualShock4GamepadHID),
+                "UnityEngine.InputSystem.LowLevel.IEventPreProcessor.PreProcessEvent"),
+            prefix: new HarmonyMethod(typeof(SonyHIDPreProcessPatch), nameof(SonyHIDPreProcessPatch.Prefix))
+            );
+
+            harmony.Patch(
+                original: AccessTools.Method(typeof(DualSenseGamepadHID),
+                    "UnityEngine.InputSystem.LowLevel.IEventPreProcessor.PreProcessEvent"),
+                prefix: new HarmonyMethod(typeof(SonyHIDPreProcessPatch), nameof(SonyHIDPreProcessPatch.Prefix))
+            );
+
+>>>>>>> 63aaad1 (Bypassed QueueDeltaStateEvent limitations on Sony Controllers)
 #endif
         }
 
@@ -276,6 +336,7 @@ namespace MoreStories.GyroTools
         }
 
         static void DequeueImuValues(ImuType type, ref ImuReading imuReading)
+<<<<<<< HEAD
         {
            
             while(LoadImuReading(type, ref imuReading))
@@ -291,18 +352,17 @@ namespace MoreStories.GyroTools
                     InputSystem.QueueDeltaStateEvent(motionControls[imuReading.controllerIndex][type], imuReading.value);
                 }
 #else
+=======
+        {  
+            while(LoadImuReading(type, ref imuReading)) 
+>>>>>>> 63aaad1 (Bypassed QueueDeltaStateEvent limitations on Sony Controllers)
                 InputSystem.QueueDeltaStateEvent(motionControls[imuReading.controllerIndex][type], imuReading.value);
-#endif
-
-                                 
-            }
         }
 
         static void OnQuit()
         {
             stop_sdl_loop();
             InputSystem.onDeviceChange -= RefreshGamepadControls;
-
         }
         
         /// According to the SDL wiki SDL uses a right hand coordinate system where Y is up
