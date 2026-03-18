@@ -11,6 +11,11 @@ using UnityEngine.LowLevel;
 using System;
 using UnityEngine.InputSystem.Layouts;
 using UnityEngine.InputSystem.LowLevel;
+using UnityEngine.InputSystem.DualShock;
+
+#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+using HarmonyLib;
+#endif
 
 
 [assembly : AlwaysLinkAssembly]
@@ -125,7 +130,7 @@ namespace MoreStories.GyroTools
         #region layout_information
 
         public const string GamepadLayoutName  = "Gamepad";
-        public const string DS4HIDLayoutName   = "Dualshock4GamepadHID";
+        public const string DS4HIDLayoutName   = "DualShock4GamepadHID";
         public const string SwitchProLinuxName = "SwitchProControllerLinux";
         public const string IMUControlPath     = "IMU";
         public const string GyroControlPath    = IMUControlPath + "/gyro";
@@ -154,27 +159,6 @@ namespace MoreStories.GyroTools
                 new OverridenControl { name = "buttonEast",  bit = (int)GamepadButton.South, synthetic = true, layout = "Button"},
             }
         };
-
-// Temporary Measure to combat current glitch where DS4 controllers won't accept layout override inputs externally
-#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
-        static GyroControllerLayout Dualshock4HIDOverride = new GyroControllerLayout
-        {
-            name = "Dualshock4GamepadHIDCustom",
-            extend = DS4HIDLayoutName,
-            controls = new OverridenControl[]
-            {
-                new OverridenControl { name = IMUControlPath,   layout = IMUControlPath, synthetic = false, offset = 13, processors = "ScaleIMU(accelX =38, accelY=38, accelZ=38, gyroX=-35, gyroY=-35, gyroZ=35)" }, 
-                new OverridenControl{ name = GyroControlPath,  format = "VC3S", layout = "Vector3", offset = 0, synthetic = false, processors = "ScaleVector3(x=-35,  y=-35,  z=35)"  },
-                    new OverridenControl { name = GyroControlPath + "/x", layout= "Axis",  format = "SHRT", offset = 0, processors = "Scale(factor = -35)"},
-                    new OverridenControl { name = GyroControlPath + "/y", layout= "Axis",  format = "SHRT", offset = 2, processors = "Scale(factor = -35)"},
-                    new OverridenControl { name = GyroControlPath + "/z", layout= "Axis",  format = "SHRT", offset = 4, processors = "Scale(factor = 35)"},
-                new OverridenControl { name = AccelControlPath, format = "VC3S", layout = "Vector3", offset = 6, synthetic = false, processors = "ScaleVector3(x=38, y=38, z=38)" },
-                    new OverridenControl { name = AccelControlPath + "/x", layout = "Axis",  format = "SHRT", offset = 0, processors = "Scale(factor = 38)"},
-                    new OverridenControl { name = AccelControlPath + "/y", layout = "Axis",  format = "SHRT", offset = 2, processors = "Scale(factor = 38)"},
-                    new OverridenControl { name = AccelControlPath + "/z", layout = "Axis",  format = "SHRT", offset = 4, processors = "Scale(factor = 38)"}
-            }
-        };
-#endif
 
         #endregion
         
@@ -252,6 +236,7 @@ namespace MoreStories.GyroTools
 
         static void AddNewIMULayout()
         {
+           
             InputSystem.RegisterLayout<IMUControl>(IMUControlPath);
             InputSystem.RegisterLayoutOverride(JsonUtility.ToJson(GamepadWithIMUOverride));
 
@@ -263,7 +248,18 @@ namespace MoreStories.GyroTools
 
 #elif UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
 
-            InputSystem.RegisterLayoutOverride(JsonUtility.ToJson(Dualshock4HIDOverride));
+            var harmony = new Harmony("com.MoreStories.HIDPatches");    
+            harmony.Patch(
+            original: AccessTools.Method(typeof(DualShock4GamepadHID),
+                "UnityEngine.InputSystem.LowLevel.IEventPreProcessor.PreProcessEvent"),
+            prefix: new HarmonyMethod(typeof(SonyHIDPreProcessPatch), nameof(SonyHIDPreProcessPatch.Prefix))
+            );
+
+            harmony.Patch(
+                original: AccessTools.Method(typeof(DualSenseGamepadHID),
+                    "UnityEngine.InputSystem.LowLevel.IEventPreProcessor.PreProcessEvent"),
+                prefix: new HarmonyMethod(typeof(SonyHIDPreProcessPatch), nameof(SonyHIDPreProcessPatch.Prefix))
+            );
 
 #endif
         }
@@ -303,33 +299,15 @@ namespace MoreStories.GyroTools
         }
 
         static void DequeueImuValues(ImuType type, ref ImuReading imuReading)
-        {
-           
-            while(LoadImuReading(type, ref imuReading))
-            {
-#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
-                if(motionControls[imuReading.controllerIndex].owner.layout == DS4HIDLayoutName)
-                {
-                    set_controller_imu_state(imuReading.controllerIndex, false);
-                    
-                }
-                else
-                {
-                    InputSystem.QueueDeltaStateEvent(motionControls[imuReading.controllerIndex][type], imuReading.value);
-                }
-#else
+        {  
+            while(LoadImuReading(type, ref imuReading)) 
                 InputSystem.QueueDeltaStateEvent(motionControls[imuReading.controllerIndex][type], imuReading.value);
-#endif
-
-                                 
-            }
         }
 
         static void OnQuit()
         {
             stop_sdl_loop();
             InputSystem.onDeviceChange -= RefreshGamepadControls;
-
         }
         
         /// According to the SDL wiki SDL uses a right hand coordinate system where Y is up
