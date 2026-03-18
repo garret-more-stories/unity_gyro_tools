@@ -1,7 +1,5 @@
 #if UNITY_EDITOR
-using UnityEngine;
 using UnityEditor;
-using UnityEngine.InputSystem;
 using System.IO;
 
 // Revise this code if building doesn't work

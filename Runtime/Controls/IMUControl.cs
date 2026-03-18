@@ -1,6 +1,5 @@
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
-using UnityEngine.InputSystem.Utilities;
 using UnityEngine.InputSystem.Layouts;
 
 namespace MoreStories.GyroTools
