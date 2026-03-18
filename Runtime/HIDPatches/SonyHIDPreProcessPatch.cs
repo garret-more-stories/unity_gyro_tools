@@ -2,12 +2,15 @@ using System.Reflection;
 using HarmonyLib;
 using UnityEngine.InputSystem.DualShock;
 using UnityEngine.InputSystem.LowLevel;
+using UnityEngine.Scripting;
 
 namespace MoreStories.GyroTools
 {
     [HarmonyPatch]
+    [Preserve]
     public static class SonyHIDPreProcessPatch
     {
+        [Preserve]
         static MethodBase TargetMethod()
         {
             // Access the private explicit interface implementation via reflection
@@ -16,6 +19,7 @@ namespace MoreStories.GyroTools
                 BindingFlags.NonPublic | BindingFlags.Instance);
         }
 
+        [Preserve]
         // Will uncomment the second bool once I rewrite the timestamp system
         public static unsafe bool Prefix(InputEventPtr eventPtr, ref bool __result) 
             => !(__result = eventPtr.type == DeltaStateEvent.Type); //&& DeltaStateEvent.From(eventPtr)->stateFormat == IMUState.Format);

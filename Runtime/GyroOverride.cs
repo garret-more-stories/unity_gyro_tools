@@ -296,8 +296,11 @@ namespace MoreStories.GyroTools
                     "UnityEngine.InputSystem.LowLevel.IEventPreProcessor.PreProcessEvent"),
                 prefix: new HarmonyMethod(typeof(SonyHIDPreProcessPatch), nameof(SonyHIDPreProcessPatch.Prefix))
             );
+<<<<<<< HEAD
 
 >>>>>>> 63aaad1 (Bypassed QueueDeltaStateEvent limitations on Sony Controllers)
+=======
+>>>>>>> e0e1f70 (Fixed Harmony code stripping issues.)
 #endif
         }
 
