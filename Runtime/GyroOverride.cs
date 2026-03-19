@@ -9,12 +9,13 @@ using UnityEngine.Scripting;
 using UnityEngine.PlayerLoop;
 using UnityEngine.LowLevel;
 using System;
-using UnityEngine.InputSystem.Layouts;
 using UnityEngine.InputSystem.LowLevel;
-using UnityEngine.InputSystem.DualShock;
 
 #if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+using UnityEngine.InputSystem.DualShock;
 using HarmonyLib;
+#else
+using UnityEngine.InputSystem.Layouts;
 #endif
 
 
