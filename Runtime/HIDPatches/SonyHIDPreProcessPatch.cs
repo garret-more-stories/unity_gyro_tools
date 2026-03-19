@@ -1,3 +1,4 @@
+#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
 using System.Reflection;
 using HarmonyLib;
 using UnityEngine.InputSystem.DualShock;
@@ -25,3 +26,5 @@ namespace MoreStories.GyroTools
             => !(__result = eventPtr.type == DeltaStateEvent.Type); //&& DeltaStateEvent.From(eventPtr)->stateFormat == IMUState.Format);
     }
 }
+
+#endif

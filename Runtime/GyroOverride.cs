@@ -10,13 +10,18 @@ using UnityEngine.PlayerLoop;
 using UnityEngine.LowLevel;
 using System;
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 using UnityEngine.InputSystem.Layouts;
+=======
+>>>>>>> 97069b4 (Fixed Harmony conflicts with non-Windows OS's)
 using UnityEngine.InputSystem.LowLevel;
-using UnityEngine.InputSystem.DualShock;
 
 #if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+using UnityEngine.InputSystem.DualShock;
 using HarmonyLib;
+#else
+using UnityEngine.InputSystem.Layouts;
 #endif
 >>>>>>> 63aaad1 (Bypassed QueueDeltaStateEvent limitations on Sony Controllers)
 
