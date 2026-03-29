@@ -21,9 +21,8 @@ namespace MoreStories.GyroTools
         }
 
         [Preserve]
-        // Will uncomment the second bool once I rewrite the timestamp system
         public static unsafe bool Prefix(InputEventPtr eventPtr, ref bool __result) 
-            => !(__result = eventPtr.type == DeltaStateEvent.Type); //&& DeltaStateEvent.From(eventPtr)->stateFormat == IMUState.Format);
+            => !(__result = eventPtr.type == DeltaStateEvent.Type); 
     }
 }
 

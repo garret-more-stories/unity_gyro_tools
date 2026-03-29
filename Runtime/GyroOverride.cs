@@ -26,6 +26,14 @@ using UnityEngine.InputSystem.Layouts;
 namespace MoreStories.GyroTools
 {
     public class MotionSensorUpdate { }
+
+    public enum IMUType : uint
+    {
+        Accelerometer = 0,
+        Gyroscope     = 1,
+        Count         = 2
+    }
+       
     public static class GyroOverride
     {
 
@@ -38,7 +46,7 @@ namespace MoreStories.GyroTools
 #endif
 
         //[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        public delegate void ControllerSensorCallback(int controllerIndex, float x, float y, float z);
+        public delegate void ControllerSensorCallback(int controllerIndex, float x, float y, float z, ulong timestamp);
 
         [DllImport(imu_library, CallingConvention = CallingConvention.Cdecl)]
         private static extern void register_gyro_callback(ControllerSensorCallback callback);
@@ -86,6 +94,7 @@ namespace MoreStories.GyroTools
             Vector3Control[] imus;
             public Gamepad owner {get; private set;}
 
+            public IMUControl imuControl;
             public Vector3Control accelerometer => this[IMUType.Accelerometer];
             public Vector3Control gyroscope     => this[IMUType.Gyroscope];
 
@@ -99,11 +108,12 @@ namespace MoreStories.GyroTools
             } 
             
 
-            public MotionControls(Gamepad owner, Vector3Control gyroscope, Vector3Control accelerometer)
+            public MotionControls(Gamepad owner, IMUControl imuControl, Vector3Control gyroscope, Vector3Control accelerometer)
             {
                 initialTime = -1;
 
                 this.owner = owner;
+                this.imuControl = imuControl;
                 imus = new Vector3Control[(int)IMUType.Count];
                 initialTimestamps = new ulong [(int)IMUType.Count];
 
@@ -125,17 +135,21 @@ namespace MoreStories.GyroTools
         {
             public Vector3 value       {get; private set;}
             public int controllerIndex {get; private set;}
+
+            public ulong timestamp     {get; private set;}
             
-            public IMUReading(int controllerIndex, Vector3 value)
+            public IMUReading(int controllerIndex, Vector3 value, ulong timestamp)
             {
                 this.controllerIndex = controllerIndex;
                 this.value           = value;
+                this.timestamp       = timestamp;
             }
 
-            public IMUReading(int controllerIndex, float x, float y, float z)
+            public IMUReading(int controllerIndex, float x, float y, float z, ulong timestamp)
             {
                 this.controllerIndex = controllerIndex;
                 value = new Vector3(x, y, z);
+                this.timestamp       = timestamp;
             }
         }
 
@@ -160,14 +174,6 @@ namespace MoreStories.GyroTools
             public string processors;
             public int bit;
         }
-
-        public enum IMUType : uint
-        {
-            Accelerometer = 0,
-            Gyroscope     = 1,
-            Count         = 2
-        }
-       
         #endregion
 
         #region layout_information
@@ -268,6 +274,7 @@ namespace MoreStories.GyroTools
         #endregion
 
         static MotionControls[] motionControls;
+        static ControllerSensorCallback onGyroRead, onAccelRead;
         static ConcurrentQueue<IMUReading> gyroReadings  = new ConcurrentQueue<IMUReading>(), 
                                            accelReadings = new ConcurrentQueue<IMUReading>();
         
@@ -327,23 +334,9 @@ namespace MoreStories.GyroTools
             InputSystem.onDeviceChange -= RefreshGamepadControls;
             InputSystem.onDeviceChange += RefreshGamepadControls;
 
-            AddingMotionSensorUpdateToPlayerLoop();   
-
-            //InputSystem.onBeforeUpdate -= FeedImuValues;    
-            //InputSystem.onBeforeUpdate += FeedImuValues; 
-
-            //register_gyro_callback  (ReadGyro);   
-            //register_accel_callback (ReadAccel); 
+            AddingMotionSensorUpdateToPlayerLoop();              
 
             Application.quitting += OnQuit;  
-
-        }
-
-        static void FeedImuValues()
-        {
-            IMUReading imu = new IMUReading();
-            DequeueImuValues(IMUType.Gyroscope,     ref imu);
-            DequeueImuValues(IMUType.Accelerometer, ref imu);
 
         }
 
@@ -355,6 +348,7 @@ namespace MoreStories.GyroTools
             Vector3 imuValue = Vector3.zero;
             for(int index = 0; index < controllerCount; index++)
             {
+                IMUState imu = new IMUState();
                 for (IMUType imuType = 0; imuType < IMUType.Count; imuType++)
                 {
                     var ptr   = (IMUSample*)return_imu_samples (index, imuType);
@@ -369,54 +363,57 @@ namespace MoreStories.GyroTools
                     if (tail == return_samples_head(index, imuType)) continue;
                     
             
+                    Vector3 sdlToUnityScale = Vector3.zero;
+                    switch(imuType)
+                    {
+                        case IMUType.Accelerometer:
+                            sdlToUnityScale = new Vector3 (1, 1, -1);
+                            break;
+                        case IMUType.Gyroscope:
+                            sdlToUnityScale = new Vector3 (-1, -1, 1);
+                            break;
+                    }
                     var initialTimestamp = currentTime;
                     ulong lastTime = motionControl.initialTimestamps[(int)imuType];
                     Vector3 delta = Vector3.zero;
-                    
+                    double accumulatedDt = 0;
                     while (tail != return_samples_head(index, imuType))
                     {
 
                         ref IMUSample s = ref ptr[tail];
-                        var dt = (s.timestamp - lastTime) * NanosecondToSecond;
-                        imuValue.x = -s.x;
-                        imuValue.y = -s.y;
-                        imuValue.z =  s.z;
+                        if (Unsafe.IsNullRef(ref s)) return;
+                        IMUSample temp = s;
+
+                        var dt = (temp.timestamp - lastTime) * NanosecondToSecond;
+                        accumulatedDt +=dt;
+                        imuValue.x = temp.x * sdlToUnityScale.x;
+                        imuValue.y = temp.y * sdlToUnityScale.y;
+                        imuValue.z = temp.z * sdlToUnityScale.z;
+
                         imuValue*= (float)dt;
-                        lastTime = s.timestamp;  
+                        lastTime = temp.timestamp;  
                         
                         delta += imuValue;
-                        //Debug.Log($"Type: {imuType} Tail: {tail} Sample: {imuValue.x} {imuValue.y} {imuValue.z} DT: {dt}");  
-
                         tail = (tail + 1) & mask;
                         
                     } 
 
                     update_samples_tail(index, imuType, return_samples_head(index, imuType));
                     motionControl.initialTimestamps[(int)imuType] = lastTime;
-                    InputSystem.QueueDeltaStateEvent(motionControls[index][imuType], delta * Mathf.Rad2Deg);
+                    
+                    imu[imuType] = delta * Mathf.Rad2Deg;
+                    
                 }
+
+                InputSystem.QueueDeltaStateEvent(motionControls[index].imuControl, imu);
                 
             }  
             
         }
 
-        static void DequeueImuValues(IMUType type, ref IMUReading imuReading)
-        {  
-            Vector3 value = Vector3.zero;
-            int count = 0;
-            while(LoadImuReading(type, ref imuReading))
-            {
-                /* value += imuReading.value;
-                count++; */
-                InputSystem.QueueDeltaStateEvent(motionControls[imuReading.controllerIndex][type], imuReading.value);
-            }
-                //InputSystem.QueueDeltaStateEvent(motionControls[imuReading.controllerIndex][type], value/count);
-        }
-
         static void OnQuit()
         {
             stop_sdl_loop();
-            //InputSystem.onBeforeUpdate -= FeedImuValues;    
             InputSystem.onDeviceChange -= RefreshGamepadControls;
             PlayerLoop.SetPlayerLoop(PlayerLoop.GetDefaultPlayerLoop());
         }
@@ -429,10 +426,10 @@ namespace MoreStories.GyroTools
         /// 
         /// Thus we translate the values from SDL to be in line with the Unity standard
         [MonoPInvokeCallback (typeof(ControllerSensorCallback))]
-        static void ReadGyro  (int controllerIndex, float x, float y, float z) => gyroReadings.  Enqueue(new IMUReading(controllerIndex, -x, -y, z));
+        static void ReadGyro  (int controllerIndex, float x, float y, float z, ulong timestamp) => gyroReadings.  Enqueue(new IMUReading(controllerIndex, -x, -y, z, timestamp));
 
         [MonoPInvokeCallback (typeof(ControllerSensorCallback))]
-        static void ReadAccel (int controllerIndex, float x, float y, float z) => accelReadings. Enqueue(new IMUReading(controllerIndex,  x,  y, z));
+        static void ReadAccel (int controllerIndex, float x, float y, float z, ulong timestamp) => accelReadings. Enqueue(new IMUReading(controllerIndex,  x,  y, z, timestamp));
 
         static void RefreshGamepadControls(InputDevice device, InputDeviceChange change)
         {
@@ -443,15 +440,16 @@ namespace MoreStories.GyroTools
 
                 for (int i = 0; i < gamepads.Count; i++)
                 {
-                    var gyro  = gamepads[i].TryGetChildControl<Vector3Control>(GyroControlPath);
-                    var accel = gamepads[i].TryGetChildControl<Vector3Control>(AccelControlPath);
+                    var gyro  = gamepads[i].TryGetChildControl<Vector3Control> (GyroControlPath);
+                    var accel = gamepads[i].TryGetChildControl<Vector3Control> (AccelControlPath);
+                    var imu   = gamepads[i].TryGetChildControl<IMUControl>     (IMUControlPath);
 
                     if (gyro == null || accel == null)
                     {
                         Debug.LogError("Motion sensor controls are missing from Input set, check if layout override is working properly");
                         return;
                     }
-                    motionControls[i] = new MotionControls(gamepads[i], gyro, accel);
+                    motionControls[i] = new MotionControls(gamepads[i],imu, gyro, accel);
                 }
             }
             
