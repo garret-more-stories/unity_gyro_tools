@@ -10,7 +10,6 @@ public class GyroRotatedObject : MonoBehaviour
 {
     RotationInputs rotationInputs;
 
-
     #region Input Action Helpers
 
     // Showing an example where you might want to have several input records for each action so as to use a delta time variable
@@ -43,6 +42,10 @@ public class GyroRotatedObject : MonoBehaviour
 
     #endregion
 
+    Vector3 lastAccelerometer;
+    float   accelCompensation    = 10f;
+    float   controllerScaleRange = 0.5f;
+    float   combinedGyroDeadzone = 0.01f;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -50,8 +53,10 @@ public class GyroRotatedObject : MonoBehaviour
         rotationInputs = new RotationInputs();
         rotationInputs.Imu.Enable();
         
-        rotationInputs.Imu.DisableGyro.performed += ToggleGyroscope;
-        rotationInputs.Imu.SizeChange.performed += ChangeScale;
+        rotationInputs.Imu.DisableGyro. performed += ToggleGyroscope;
+        rotationInputs.Imu.ResetGyro.   performed += ResetRotation;
+        rotationInputs.Imu.SizeChange.  performed += ChangeScale;
+
         rotationInputs.Imu.Quit.performed += (x) => Application.Quit();
         RegisterInputCallback(rotationInputs.Imu.Motion, GyroToRotation);
         
@@ -60,7 +65,12 @@ public class GyroRotatedObject : MonoBehaviour
     void ChangeScale(InputAction.CallbackContext context)
     {
         float x = SafelyReadCallbackValue<float>(context);
-        transform.localScale =  Vector3.one * (1 + 0.5f*x);
+        transform.localScale =  Vector3.one * (1 + controllerScaleRange*x);
+    }
+
+    void ResetRotation(InputAction.CallbackContext context)
+    {
+        transform.rotation = Quaternion.LookRotation(Vector3.forward, -lastAccelerometer);
     }
     void ToggleGyroscope(InputAction.CallbackContext context)
     {
@@ -77,16 +87,25 @@ public class GyroRotatedObject : MonoBehaviour
 
     void GyroToRotation(InputAction.CallbackContext context)
     {
-        IMUState imu = SafelyReadCallbackValue<IMUState>(context);
+        var imu = SafelyReadCallbackValue<IMUState>(context);
         Vector3 gyroscope = imu.gyroscope;
-        Debug.Log(gyroscope);
-        
-        if(Mathf.Abs(gyroscope.x) > 0.01f && Mathf.Abs(gyroscope.y) > 0.01f)
+
+        if(Mathf.Abs(gyroscope.sqrMagnitude) > combinedGyroDeadzone)
         {
             float deltaTime = (float)(context.time - lastInputContextInvokeTimes[context.action]);
+           
             lastInputContextInvokeTimes[context.action] = context.time;
-            gameObject.transform.Rotate(gyroscope * Mathf.Rad2Deg * deltaTime);
-        }
+
+            var currentRotation = transform.rotation;
+            currentRotation    *= Quaternion.Euler(gyroscope);
+
+            var comp = Quaternion.FromToRotation(currentRotation * (lastAccelerometer = imu.accelerometer), Vector3.up);
+
+            comp.w *= accelCompensation /  deltaTime;
+            comp    = comp.normalized;
+
+            transform.localRotation = comp * currentRotation; 
+        } 
     }
 
     

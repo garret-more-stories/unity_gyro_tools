@@ -41,6 +41,15 @@
                     "processors": "",
                     "interactions": "Press(behavior=2)",
                     "initialStateCheck": false
+                },
+                {
+                    "name": "ResetGyro",
+                    "type": "Button",
+                    "id": "c34b2fa8-569d-4b2e-bd72-c1f5eb4ab7f8",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
                 }
             ],
             "bindings": [
@@ -96,6 +105,17 @@
                     "processors": "",
                     "groups": "",
                     "action": "DisableGyro",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "3c956c0d-af6c-4625-9d02-f14b21d64070",
+                    "path": "<Gamepad>/buttonEast",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "ResetGyro",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }
