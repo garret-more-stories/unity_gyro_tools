@@ -9,12 +9,7 @@ using UnityEngine.Scripting;
 using UnityEngine.PlayerLoop;
 using UnityEngine.LowLevel;
 using System;
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-using UnityEngine.InputSystem.Layouts;
-=======
->>>>>>> 97069b4 (Fixed Harmony conflicts with non-Windows OS's)
+
 using UnityEngine.InputSystem.LowLevel;
 
 #if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
@@ -23,7 +18,6 @@ using HarmonyLib;
 #else
 using UnityEngine.InputSystem.Layouts;
 #endif
->>>>>>> 63aaad1 (Bypassed QueueDeltaStateEvent limitations on Sony Controllers)
 
 
 [assembly : AlwaysLinkAssembly]
@@ -122,6 +116,7 @@ namespace MoreStories.GyroTools
             public string format;
             public bool   synthetic;
             public int    offset;
+            public int    bit ;
             public string processors;
         }
 
@@ -136,19 +131,12 @@ namespace MoreStories.GyroTools
 
         #region layout_information
 
-<<<<<<< HEAD
-        public const string DS4HIDLayoutName = "Dualshock4GamepadHID";
-        public const string IMUControlPath   = "IMU";
-        public const string GyroControlPath  = IMUControlPath + "/gyro";
-        public const string AccelControlPath = IMUControlPath + "/accel";
-=======
         public const string GamepadLayoutName  = "Gamepad";
         public const string DS4HIDLayoutName   = "DualShock4GamepadHID";
         public const string SwitchProLinuxName = "SwitchProControllerLinux";
         public const string IMUControlPath     = "IMU";
         public const string GyroControlPath    = IMUControlPath + "/gyro";
         public const string AccelControlPath   = IMUControlPath + "/accel";
->>>>>>> 63aaad1 (Bypassed QueueDeltaStateEvent limitations on Sony Controllers)
         static GyroControllerLayout GamepadWithIMUOverride = new GyroControllerLayout
         {
             name = "GamepadWithIMU",
@@ -161,28 +149,6 @@ namespace MoreStories.GyroTools
             }
         };
 
-<<<<<<< HEAD
-// Temporary Measure to combat current glitch where DS4 controllers won't accept layout override inputs externally
-#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
-        static GyroControllerLayout Dualshock4HIDOverride = new GyroControllerLayout
-        {
-            name = "Dualshock4GamepadHIDCustom",
-            extend = DS4HIDLayoutName,
-            controls = new OverridenControl[]
-            {
-                new OverridenControl { name = IMUControlPath,   layout = IMUControlPath, synthetic = false, offset = 13, processors = "ScaleIMU(accelX =38, accelY=38, accelZ=38, gyroX=-35, gyroY=-35, gyroZ=35)" }, 
-                new OverridenControl{ name = GyroControlPath,  format = "VC3S", layout = "Vector3", offset = 0, synthetic = false, processors = "ScaleVector3(x=-35,  y=-35,  z=35)"  },
-                    new OverridenControl { name = GyroControlPath + "/x", layout= "Axis",  format = "SHRT", offset = 0, processors = "Scale(factor = -35)"},
-                    new OverridenControl { name = GyroControlPath + "/y", layout= "Axis",  format = "SHRT", offset = 2, processors = "Scale(factor = -35)"},
-                    new OverridenControl { name = GyroControlPath + "/z", layout= "Axis",  format = "SHRT", offset = 4, processors = "Scale(factor = 35)"},
-                new OverridenControl { name = AccelControlPath, format = "VC3S", layout = "Vector3", offset = 6, synthetic = false, processors = "ScaleVector3(x=38, y=38, z=38)" },
-                    new OverridenControl { name = AccelControlPath + "/x", layout = "Axis",  format = "SHRT", offset = 0, processors = "Scale(factor = 38)"},
-                    new OverridenControl { name = AccelControlPath + "/y", layout = "Axis",  format = "SHRT", offset = 2, processors = "Scale(factor = 38)"},
-                    new OverridenControl { name = AccelControlPath + "/z", layout = "Axis",  format = "SHRT", offset = 4, processors = "Scale(factor = 38)"}
-            }
-        };
-#endif
-=======
         static GyroControllerLayout SwitchProCorrectedLayout = new GyroControllerLayout
         {
             name = SwitchProLinuxName,
@@ -195,7 +161,6 @@ namespace MoreStories.GyroTools
                 new OverridenControl { name = "buttonEast",  bit = (int)GamepadButton.South, synthetic = true, layout = "Button"},
             }
         };
->>>>>>> 63aaad1 (Bypassed QueueDeltaStateEvent limitations on Sony Controllers)
 
         #endregion
         
@@ -276,10 +241,6 @@ namespace MoreStories.GyroTools
            
             InputSystem.RegisterLayout<IMUControl>(IMUControlPath);
             InputSystem.RegisterLayoutOverride(JsonUtility.ToJson(GamepadWithIMUOverride));
-<<<<<<< HEAD
-#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
-            InputSystem.RegisterLayoutOverride(JsonUtility.ToJson(Dualshock4HIDOverride));
-=======
 
 #if UNITY_EDITOR_LINUX || UNITY_STANDALONE_LINUX
 
@@ -301,11 +262,7 @@ namespace MoreStories.GyroTools
                     "UnityEngine.InputSystem.LowLevel.IEventPreProcessor.PreProcessEvent"),
                 prefix: new HarmonyMethod(typeof(SonyHIDPreProcessPatch), nameof(SonyHIDPreProcessPatch.Prefix))
             );
-<<<<<<< HEAD
-
->>>>>>> 63aaad1 (Bypassed QueueDeltaStateEvent limitations on Sony Controllers)
-=======
->>>>>>> e0e1f70 (Fixed Harmony code stripping issues.)
+            
 #endif
         }
 
@@ -344,26 +301,8 @@ namespace MoreStories.GyroTools
         }
 
         static void DequeueImuValues(ImuType type, ref ImuReading imuReading)
-<<<<<<< HEAD
-        {
-           
-            while(LoadImuReading(type, ref imuReading))
-            {
-#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
-                if(motionControls[imuReading.controllerIndex].owner.layout == "DualShock4GamepadHID")
-                {
-                    set_controller_imu_state(imuReading.controllerIndex, false);
-                    
-                }
-                else
-                {
-                    InputSystem.QueueDeltaStateEvent(motionControls[imuReading.controllerIndex][type], imuReading.value);
-                }
-#else
-=======
         {  
             while(LoadImuReading(type, ref imuReading)) 
->>>>>>> 63aaad1 (Bypassed QueueDeltaStateEvent limitations on Sony Controllers)
                 InputSystem.QueueDeltaStateEvent(motionControls[imuReading.controllerIndex][type], imuReading.value);
         }
 
@@ -381,10 +320,10 @@ namespace MoreStories.GyroTools
         /// 
         /// Thus we translate the values from SDL to be in line with the Unity standard
         [MonoPInvokeCallback (typeof(ControllerSensorCallback))]
-        static void ReadGyro  (int controllerIndex, float x, float y, float z) => gyroReadings.  Enqueue(new ImuReading(controllerIndex, -x, -y, z));
+        static void ReadGyro  (int controllerIndex, float x, float y, float z) => gyroReadings.  Enqueue(new ImuReading(controllerIndex, -x, -y,  z));
 
         [MonoPInvokeCallback (typeof(ControllerSensorCallback))]
-        static void ReadAccel (int controllerIndex, float x, float y, float z) => accelReadings. Enqueue(new ImuReading(controllerIndex,  x,  y, z));
+        static void ReadAccel (int controllerIndex, float x, float y, float z) => accelReadings. Enqueue(new ImuReading(controllerIndex,  x,  y, -z));
 
         static void RefreshGamepadControls(InputDevice device, InputDeviceChange change)
         {
