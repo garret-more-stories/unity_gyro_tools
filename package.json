@@ -1,6 +1,6 @@
 {
   "name": "com.morestories.unity_gyro_tools",
-  "version": "0.1.5",
+  "version": "0.1.8",
   "displayName": "GyroTools",
   "description": "A set of scripts to help with the addition of gyroscope and accelerometer inputs in Unity games",
   "unity": "2022.3",
