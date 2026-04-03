@@ -26,7 +26,7 @@ namespace MoreStories.GyroTools
                         accelerometer = value;
                         break;
                     case IMUType.Gyroscope:
-                        gyroscope = value;
+                        gyroscope = value * Mathf.Rad2Deg;
                         break;
                 }
             }

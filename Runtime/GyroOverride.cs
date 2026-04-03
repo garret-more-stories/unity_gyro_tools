@@ -377,6 +377,7 @@ namespace MoreStories.GyroTools
                     ulong lastTime = motionControl.initialTimestamps[(int)imuType];
                     Vector3 delta = Vector3.zero;
                     double accumulatedDt = 0;
+                    int count = 0;
                     while (tail != return_samples_head(index, imuType))
                     {
 
@@ -390,7 +391,8 @@ namespace MoreStories.GyroTools
                         imuValue.y = temp.y * sdlToUnityScale.y;
                         imuValue.z = temp.z * sdlToUnityScale.z;
 
-                        imuValue*= (float)dt;
+                        if(imuType == IMUType.Gyroscope)imuValue*= (float)dt;
+                        else count++;
                         lastTime = temp.timestamp;  
                         
                         delta += imuValue;
@@ -401,7 +403,8 @@ namespace MoreStories.GyroTools
                     update_samples_tail(index, imuType, return_samples_head(index, imuType));
                     motionControl.initialTimestamps[(int)imuType] = lastTime;
                     
-                    imu[imuType] = delta * Mathf.Rad2Deg;
+                    if(imuType == IMUType.Accelerometer) delta/= count;
+                    imu[imuType] = delta;
                     
                 }
 
